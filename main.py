@@ -1,14 +1,27 @@
 import telebot
 from telebot import types
+import os
+from flask import Flask
+import threading
 
 TOKEN = "8508598804:AAHcIz1oD-OntAmn68qtfk1mURDpkvTf4aM"
 ADMIN_ID = 8926052749
 bot = telebot.TeleBot(TOKEN)
 
-# የተጠቃሚዎችን የሂደት ሁኔታ (State) መቆጣጠሪያ መዝገብ
+# ---- 🛑 የነፃ ሰርቨር ማቆያ (Flask Setup) 🛑 ----
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "AK Develop Bot is Running Automatically!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+# -----------------------------------------------
+
 user_states = {}
 
-# ለሁሉም አገልግሎቶች የሚሆኑ የጽሁፍ ማከማቻዎች (ከ5-6 መስመር በላይ የተረዘሙ)
 TEXTS = {
     'welcome': (
         "👋 Welcome to AK DEVELOP ORDER CENTER!\n"
@@ -96,13 +109,12 @@ TEXTS = {
     }
 }
 
-# የአገልግሎቶች ዝርዝር መግለጫዎች እና የተከታታይ ጥያቄዎች ማውጫ
 SERVICES_DATA = {
     'website': {
         'types': ['E-commerce Website', 'Portfolio Website', 'Business Website', 'Landing Page'],
         'am_desc': {
             'E-commerce Website': "🛍️ የኢኮሜርስ ዌብሳይት፡ ምርቶችዎን በአለምአቀፍ ደረጃ ለገበያ የሚያቀርቡበት፣ ሙሉ የሽያጭ ሲስተም፣ የክፍያ አማራጮች እና የዕቃ መቆጣጠሪያ ማውጫ ያለው እጅግ ዘመናዊ የዲጂታል ሱቅ መድረክ ነው::",
-            'Portfolio Website': "💼 የፖርትፎሊዮ ዌብሳይት፡ የእርስዎን ሙያ፣ ክህሎት፣ ስራዎች እና ግላዊ ማረጋገጫዎች ለቀጣሪዎች ወይም ለደንበኞች በሚማርክ ሁኔታ የሚያስተዋውቁበት ፕሮፌሽናል ገጽ ነው::",
+            'Portfolio Website': "💼 የፖርትፎሊዮ ዌብሳይት፡ የእርስዎን ሙያ፣ ክህሎት Slot፣ ስራዎች እና ግላዊ ማረጋገጫዎች ለቀጣሪዎች ወይም ለደንበኞች በሚማርክ ሁኔታ የሚያስተዋውቁበት ፕሮፌሽናል ገጽ ነው::",
             'Business Website': "🏢 የቢዝነስ ዌብሳይት፡ ስለ ድርጅትዎ አገልግሎቶች፣ አድራሻ፣ አላማ እና ተልዕኮ ሰፊ መረጃ በመስጠት የድርጅትዎን አመኔታ እና የደንበኞችን ቁጥር በከፍተኛ ደረጃ የሚያሳድግ ሲስተም ነው::",
             'Landing Page': "🎯 ላንዲንግ ፔጅ፡ የተወሰኑ ምርቶችን ወይም አዳዲስ ክስተቶችን በአንድ ገጽ ላይ ብቻ በማሳየት ደንበኞች ፈጣን ውሳኔ እንዲሰጡ የሚያደርግ ውጤታማ የግብይት ገጽ ነው::"
         },
@@ -187,8 +199,6 @@ SERVICES_DATA = {
     }
 }
 
-
-# ረዳት ተግባር - የተጠቃሚውን ቋንቋ ለማረጋገጥ
 def check_lang(message):
     uid = message.chat.id
     if uid not in user_states or 'lang' not in user_states[uid]:
@@ -196,14 +206,12 @@ def check_lang(message):
         return False
     return True
 
-# ረዳት ተግባር - የቋንቋ መምረጫ ቁልፍ
 def get_lang_keyboard():
     kb = types.InlineKeyboardMarkup()
     kb.row(types.InlineKeyboardButton("አማርኛ 🇪🇹", callback_data="setlang_am"),
            types.InlineKeyboardButton("English 🇬🇧", callback_data="setlang_en"))
     return kb
 
-# ረዳት ተግባር - ዋና ማውጫ ቁልፍ
 def get_main_keyboard(lang):
     kb = types.InlineKeyboardMarkup(row_width=1)
     if lang == 'am':
@@ -228,22 +236,17 @@ def get_main_keyboard(lang):
         )
     return kb
 
-
-# START ትዕዛዝ መስመር
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     uid = message.chat.id
-    user_states[uid] = {}  # ስቴቱን ማጽዳት
+    user_states[uid] = {}
     bot.send_message(uid, TEXTS['welcome'], reply_markup=get_lang_keyboard())
 
-
-# የ CALLBACK DATAዎችን መቆጣጠሪያ
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     uid = call.message.chat.id
     data = call.data
 
-    # ቋንቋ መምረጥ
     if data.startswith("setlang_"):
         lang = data.split("_")[1]
         user_states[uid] = {'lang': lang}
@@ -251,7 +254,6 @@ def handle_callbacks(call):
         bot.send_message(uid, TEXTS[lang]['main_menu'], reply_markup=get_main_keyboard(lang))
         return
 
-    # ቋንቋ መመረጡን ማረጋገጥ
     if uid not in user_states or 'lang' not in user_states[uid]:
         bot.answer_callback_query(call.id, "Please select language first / እባክዎ መጀመሪያ ቋንቋ ይምረጡ")
         bot.send_message(uid, TEXTS['welcome'], reply_markup=get_lang_keyboard())
@@ -259,14 +261,12 @@ def handle_callbacks(call):
 
     lang = user_states[uid]['lang']
 
-    # ወደ ዋና ማውጫ መመለሻ (Back)
     if data == "back_to_main":
-        user_states[uid] = {'lang': lang}  # ስቴቱን ዳግም ማስጀመር
+        user_states[uid] = {'lang': lang}
         bot.answer_callback_query(call.id)
         bot.send_message(uid, TEXTS[lang]['main_menu'], reply_markup=get_main_keyboard(lang))
         return
 
-    # ስለ እኛ እና አስተያየት
     if data == "menu_about":
         bot.answer_callback_query(call.id)
         kb = types.InlineKeyboardMarkup()
@@ -280,7 +280,6 @@ def handle_callbacks(call):
         bot.send_message(uid, TEXTS[lang]['feedback_prompt'])
         return
 
-    # የዌብሳይት፣ ቦት፣ አፕ ምርጫዎች ማሳያ
     if data in ["menu_website", "menu_bot", "menu_app"]:
         bot.answer_callback_query(call.id)
         service_key = data.split("_")[1]
@@ -294,11 +293,10 @@ def handle_callbacks(call):
         kb.add(types.InlineKeyboardButton("⬅️ Back" if lang=='en' else "⬅️ ወደ ዋናው ማውጫ", callback_data="back_to_main"))
         
         title = service_key.upper()
-        msg_text = f"🛠️ Select the type of {title} you want to build:\n🛠️ እባክዎ እንዲሰራ የሚፈልጉትን የ{title} አይነት ይምረጡ:" if lang=='en' else f"🛠️ ለመስራት የፈለጉትን የ {title} አይነት ከታች ካሉት አማራጮች ይምረጡ:"
+        msg_text = f"🛠️ Select the type of {title} you want to build:" if lang=='en' else f"🛠️ ለመስራት የፈለጉትን የ {title} አይነት ከታች ካሉት አማራጮች ይምረጡ:"
         bot.send_message(uid, msg_text, reply_markup=kb)
         return
 
-    # ንዑስ አገልግሎት መምረጥ (E-commerce, Portfolio ወዘተ)
     if data.startswith("selecttype_"):
         bot.answer_callback_query(call.id)
         chosen_type = data.split("_")[1]
@@ -309,7 +307,6 @@ def handle_callbacks(call):
             user_states[uid]['state'] = 'waiting_other_desc'
             bot.send_message(uid, TEXTS[lang]['other_prompt'])
         else:
-            # መግለጫውን አውጥቶ ማሳየት
             desc = SERVICES_DATA[service_key]['en_desc'][chosen_type] if lang == 'en' else SERVICES_DATA[service_key]['am_desc'][chosen_type]
             full_msg = desc + TEXTS[lang]['confirm_desc']
             
@@ -319,14 +316,12 @@ def handle_callbacks(call):
             bot.send_message(uid, full_msg, reply_markup=kb)
         return
 
-    # የተመረጠውን አይነት ማረጋገጫ (Yes / No)
     if data.startswith("confirmtype_"):
         bot.answer_callback_query(call.id)
         status = data.split("_")[1]
         service_key = user_states[uid]['service']
         
         if status == "no":
-            # ወደ ንዑስ ማውጫው መመለስ
             kb = types.InlineKeyboardMarkup(row_width=1)
             for t in SERVICES_DATA[service_key]['types']:
                 kb.add(types.InlineKeyboardButton(t, callback_data=f"selecttype_{t}"))
@@ -334,14 +329,12 @@ def handle_callbacks(call):
             kb.add(types.InlineKeyboardButton("⬅️ Back" if lang=='en' else "⬅️ ወደ ዋናው ማውጫ", callback_data="back_to_main"))
             bot.send_message(uid, "🔄 Selection canceled. Please choose again:" if lang=='en' else "🔄 ምርጫው ተሰርዟል:: እባክዎ ድጋሚ ይምረጡ:", reply_markup=kb)
         else:
-            # ጥያቄዎችን መጀመር
             user_states[uid]['step'] = 0
             user_states[uid]['answers'] = []
             user_states[uid]['state'] = 'asking_questions'
             ask_next_question(uid)
         return
 
-    # PROMOTION & RESELL
     if data == "menu_promo":
         bot.answer_callback_query(call.id)
         kb = types.InlineKeyboardMarkup()
@@ -398,14 +391,12 @@ def handle_callbacks(call):
         show_social_platforms(uid, lang)
         return
 
-    # SOCIAL MEDIA MANAGEMENT
     if data == "menu_mgmt":
         bot.answer_callback_query(call.id)
         user_states[uid]['service'] = 'management'
         show_social_platforms(uid, lang)
         return
 
-    # ሶሻል ሚዲያ ፕላትፎርም መረጣ
     if data.startswith("plat_"):
         bot.answer_callback_query(call.id)
         platform = data.split("_")[1]
@@ -413,39 +404,34 @@ def handle_callbacks(call):
 
         if platform == "other":
             user_states[uid]['state'] = 'waiting_custom_platform'
-            msg = "📱 Please specify your custom social media platform by typing command format (e.g. /whatsapp, /imo, /linkedin):" if lang=='en' else "📱 እባክዎ የሚጠቀሙትን የሶሻል ሚዲያ አይነት በትዕዛዝ መልክ ይጻፉልን (ምሳሌ፡ /whatsapp, /imo, /linkedin):"
+            msg = "📱 Please specify your custom social media platform by typing command format (e.g. /whatsapp):" if lang=='en' else "📱 እባክዎ የሚጠቀሙትን የሶሻል ሚዲያ አይነት በትዕዛዝ መልክ ይጻፉልን (ምሳሌ፡ /whatsapp):"
             bot.send_message(uid, msg)
         else:
             ask_account_category(uid, lang)
         return
 
-    # የአካውንት አይነት (Group, Channel, Personal)
     if data.startswith("acctype_"):
         bot.answer_callback_query(call.id)
         acc_type = data.split("_")[1]
         user_states[uid]['account_type'] = acc_type
         user_states[uid]['state'] = 'waiting_username_lookup'
         
-        msg = f"🔍 Please enter the public target Username/Link of your {acc_type} asset now:" if lang=='en' else f"🔍 እባክዎ የሚሸጡትን የ{acc_type} ትክክለኛ ሊንክ ወይም የተጠቃሚ ስም (Username) ያስገቡ:"
+        msg = f"🔍 Please enter the public target Username of your {acc_type} asset now:" if lang=='en' else f"🔍 እባክዎ የሚሸጡትን የ{acc_type} ትክክለኛ ሊንክ ወይም የተጠቃሚ ስም (Username) ያስገቡ:"
         bot.send_message(uid, msg)
         return
 
-    # የአካውንት ፍተሻ ማረጋገጫ (Yes / No)
     if data.startswith("verifyacc_"):
         bot.answer_callback_query(call.id)
         status = data.split("_")[1]
         if status == "no":
             show_social_platforms(uid, lang)
         else:
-            # ጥያቄዎችን መጀመር
             user_states[uid]['step'] = 0
             user_states[uid]['answers'] = []
             user_states[uid]['state'] = 'asking_questions'
             ask_next_question(uid)
         return
 
-
-# ሶሻል ሚዲያ ፕላትፎርሞችን ማሳያ ቁልፍ
 def show_social_platforms(uid, lang):
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(
@@ -459,7 +445,6 @@ def show_social_platforms(uid, lang):
     msg = "📱 Select the primary Social Media platform engine involved in this operation:" if lang=='en' else "📱 እባክዎ የሚፈልጉትን የሶሻል ሚዲያ ፕላትፎርም አይነት ከታች ካሉት አማራጮች ውስጥ ይምረጡ:"
     bot.send_message(uid, msg, reply_markup=kb)
 
-# የአካውንት አይነት መምረጫ (Group, Channel, Personal Account)
 def ask_account_category(uid, lang):
     kb = types.InlineKeyboardMarkup(row_width=1)
     kb.add(
@@ -471,14 +456,11 @@ def ask_account_category(uid, lang):
     msg = "📂 Select the specific structure category of the target digital asset:" if lang=='en' else "📂 እባክዎ የሚሸጠውን ዲጂታል አካውንት አወቃቀር ወይም አይነት ይምረጡ:"
     bot.send_message(uid, msg, reply_markup=kb)
 
-
-# ተከታታይ ጥያቄዎችን የመጠየቂያ ሞጁል
 def ask_next_question(uid):
     lang = user_states[uid]['lang']
     service = user_states[uid]['service']
     step = user_states[uid]['step']
 
-    # ለእያንዳንዱ አገልግሎት 5 የተለያዩ ጥያቄዎች ዝርዝር
     questions = []
     if service in ['website', 'bot', 'app']:
         questions = SERVICES_DATA[service]['questions_en'] if lang == 'en' else SERVICES_DATA[service]['questions_am']
@@ -508,22 +490,19 @@ def ask_next_question(uid):
         ]
     elif service == 'management':
         questions = [
-            "1. What is the precise contract runtime duration sequence requested for active setup?" if lang=='en' else "1. የሶሻል ሚዲያ ማናጅመንት ስራው ለምን ያህል ጊዜ (ለምሳሌ፡ ለ1 ወር፣ ለ6 ወር) እንዲቆይ ይፈልጋሉ?",
+            "1. What is the precise contract runtime duration sequence requested for active setup?" if lang=='en' else "1. የሶሻል ሚዲያ ማናጅመንት ስራው ለምን ያህል ጊዜ (ለምሳሌ፡ ለ1 ወር) እንዲቆይ ይፈልጋሉ?",
             "2. How many high-quality graphic posts or media distributions are needed weekly?" if lang=='en' else "2. በሳምንት ውስጥ በአማካይ ስንት የጽሁፍ እና የፎቶ ይዘቶች እንዲፖስቱ ይፈልጋሉ?",
             "3. Is live client support comment response oversight required within standard hours?" if lang=='en' else "3. በኮሜንት እና በውስጥ መስመር ለሚመጡ ደንበኞች ምላሽ የመስጠት ስራ ይካተት?",
-            "4. What is your ultimate goal? Growth hacking, community support, or direct sales conversions?" if lang=='en' else "4. ከማናጅመንቱ የሚጠብቁት ዋናው ውጤት (የፎሎወር መጨመር ወይስ ሽያጭ ማሳደግ) ምንድን ነው?",
+            "4. What is your ultimate goal? Growth hacking, community support, or direct sales conversions?" if lang=='en' else "4. ከማናጅመንቱ የሚጠብቁት ዋናው ውጤት ምንድን ነው?",
             "5. What are your clear content guidelines or visual theme limitations to monitor?" if lang=='en' else "5. በይዘት ዝግጅት ወቅት ሰራተኞቻችን እንዲከተሏቸው የሚፈልጓቸው ልዩ ህጎች አሉ?"
         ]
 
     if step < len(questions):
         bot.send_message(uid, questions[step])
     else:
-        # ጥያቄዎቹ ሲያልቁ ተጨማሪ መረጃ መጠየቅ
         user_states[uid]['state'] = 'waiting_additional_info'
         bot.send_message(uid, TEXTS[lang]['add_more_prompt'])
 
-
-# የጽሁፍ መልዕክቶችን (TEXT INPUTS) የመቆጣጠሪያ ዋና ክፍል
 @bot.message_handler(func=lambda m: True, content_types=['text'])
 def handle_text_inputs(message):
     uid = message.chat.id
@@ -535,49 +514,41 @@ def handle_text_inputs(message):
     lang = user_states[uid]['lang']
     state = user_states[uid].get('state', '')
 
-    # የአስተያየት መቀበያ
     if state == 'waiting_feedback':
         bot.send_message(ADMIN_ID, f"✍️ NEW FEEDBACK RECEIVED:\n\nUser ID: {uid}\nContent: {text}")
         user_states[uid] = {'lang': lang}
         bot.send_message(uid, TEXTS[lang]['success_order'], reply_markup=get_main_keyboard(lang))
         return
 
-    # የልዩ (Other) አገልግሎት ፍላጎት መግለጫ መቀበያ
     if state == 'waiting_other_desc':
         user_states[uid]['sub_type'] = f"Custom Request: {text}"
         user_states[uid]['state'] = 'waiting_tg_username'
         bot.send_message(uid, TEXTS[lang]['username_prompt'])
         return
 
-    # ተከታታይ ጥያቄዎችን በየደረጃው መመዝገቢያ
     if state == 'asking_questions':
         user_states[uid]['answers'].append(text)
         user_states[uid]['step'] += 1
         ask_next_question(uid)
         return
 
-    # ከተከታታይ ጥያቄዎች በኋላ ተጨማሪ ሀሳብ መቀበያ
     if state == 'waiting_additional_info':
         user_states[uid]['additional_info'] = text
         user_states[uid]['state'] = 'waiting_tg_username'
         bot.send_message(uid, TEXTS[lang]['username_prompt'])
         return
 
-    # ልዩ የሶሻል ሚዲያ ስም መቀበያ (/whatsapp ወዘተ)
     if state == 'waiting_custom_platform':
         user_states[uid]['platform'] = text
         ask_account_category(uid, lang)
         return
 
-    # የሶሻል ሚዲያ አካውንት መረጃዎችን ፈልጎ ማሳያ (Telegram Lookup Integration)
     if state == 'waiting_username_lookup':
         target_handle = text.strip()
         user_states[uid]['target_username'] = target_handle
         
-        # የቴሌግራም መረጃዎችን በራስ-ሰር ለመውሰድ መሞከር
         parsed_name = target_handle
         parsed_bio = "N/A"
-        has_photo = False
         
         if user_states[uid].get('platform') == 'telegram' or target_handle.startswith('@') or 't.me/' in target_handle:
             clean_handle = target_handle.replace('https://t.me/', '').replace('http://t.me/', '').replace('@', '')
@@ -586,13 +557,11 @@ def handle_text_inputs(message):
                 parsed_name = chat_info.title if chat_info.title else f"{chat_info.first_name or ''} {chat_info.last_name or ''}"
                 parsed_bio = chat_info.description if chat_info.description else (chat_info.bio if chat_info.bio else "No bio found")
                 if chat_info.photo:
-                    has_photo = True
-                    # የፊቱን ፕሮፋይል ፎቶ ለይቶ መላክ
                     file_info = bot.get_file(chat_info.photo.big_file_id)
                     downloaded_file = bot.download_file(file_info.file_path)
                     bot.send_photo(uid, downloaded_file, caption="📸 Account Profile Image Pulled Successfully!" if lang=='en' else "📸 የአካውንቱ መገለጫ ምስል በተሳካ ሁኔታ ተገኝቷል!")
             except Exception:
-                pass # ስህተት ካለ ወደ ፎልባክ መረጃው ያልፋል
+                pass
         
         info_panel = (
             f"⚙️ ACCOUNT CONFIRMATION DATA:\n\n"
@@ -614,11 +583,9 @@ def handle_text_inputs(message):
         bot.send_message(uid, info_panel, reply_markup=kb)
         return
 
-    # መጨረሻ ላይ የቴሌግራም ዩዘርኔም መቀበያ እና ማጠቃለያውን ወደ አድሚን መላኪያ
     if state == 'waiting_tg_username':
         user_states[uid]['tg_username'] = text
         
-        # ማጠቃለያ ሪፖርት ማመንጫ (ለአድሚን በተመረጠው ቋንቋ ብቻ የሚላክ)
         srv = user_states[uid].get('service', 'N/A').upper()
         sub_t = user_states[uid].get('sub_type', 'N/A')
         tg_user = user_states[uid]['tg_username']
@@ -664,16 +631,16 @@ def handle_text_inputs(message):
             admin_report += f"\n📊 ለቀረቡት መጠይቆች የተሰጡ ምላሾች:\n{formatted_answers}\n"
             admin_report += f"➕ ተጨማሪ የተካተቱ ማብራሪያዎች:\n  {add_info}\n"
 
-        # ማጠቃለያውን ወደ ዋናው ባለቤት መላክ
         bot.send_message(ADMIN_ID, admin_report)
-        
-        # ለደንበኛው የስኬት መልዕክት ማሳየት እና ወደ ዋና ማውጫ መመለስ
         user_states[uid] = {'lang': lang}
         bot.send_message(uid, TEXTS[lang]['success_order'], reply_markup=get_main_keyboard(lang))
         return
 
-
-# ቦቱን ማስጀመር (Long Polling Engine)
 if __name__ == '__main__':
+    print("Starting Flask Web Server on Free Tier...")
+    t = threading.Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+    
     print("AK DEVELOP ORDER CENTER BOT running safely...")
     bot.infinity_polling()
